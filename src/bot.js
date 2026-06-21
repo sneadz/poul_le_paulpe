@@ -14,9 +14,17 @@ export async function connectBot() {
   client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   return new Promise((resolve, reject) => {
-    client.once('clientReady', () => {
+    client.once('clientReady', async () => {
       console.log(`[Bot] ✅ Connecté en tant que ${client.user.tag}`);
       resolve(client);
+      try {
+        const channel = await client.channels.fetch(process.env.DISCORD_CHANNEL_ID);
+        if (channel?.isTextBased()) {
+          await channel.send('🐙 Poul le Paulpe est en ligne et surveille la Coupe du Monde !');
+        }
+      } catch (err) {
+        console.error('[Bot] ❌ Impossible d\'envoyer le message de démarrage :', err.message);
+      }
     });
 
     client.on('error', (err) => {
