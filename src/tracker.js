@@ -18,7 +18,7 @@ import { loadState, saveState, getMatchState, goalEventId } from './state.js';
 import { postEmbed } from './bot.js';
 import { embedDebut, embedBut, embedMiTemps, embedFin, embedBulletinJournalier } from './embeds.js';
 
-const POLL_INTERVAL    = parseInt(process.env.POLL_INTERVAL_MS ?? '90000', 10);
+const POLL_INTERVAL    = parseInt(process.env.POLL_INTERVAL_MS ?? '30000', 10);
 const MARGE_AVANT      = 5  * 60 * 1000;   // 5 min avant coup d'envoi
 const DUREE_MAX_MATCH  = 135 * 60 * 1000;  // 135 min max (prolongations)
 
