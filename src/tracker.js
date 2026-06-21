@@ -279,6 +279,21 @@ async function traiterMatch(match, state) {
 
   // Début de match
   if (STATUTS_LIVE.has(statut) && !ms.announcedStart) {
+    // Si le bot redémarre sur un match déjà en cours avec des buts existants,
+    // on initialise le score sans ré-annoncer les anciens buts
+    if (scoreHome + scoreAway > 0 && ms.homeScore === 0 && ms.awayScore === 0) {
+      console.log(`[Tracker] ↩️  Match déjà en cours (${scoreHome}-${scoreAway}), Poul rattrape le score sans re-annoncer.`);
+      ms.homeScore = scoreHome;
+      ms.awayScore = scoreAway;
+      // Marque tous les scores intermédiaires comme déjà annoncés
+      for (let h = 0; h <= scoreHome; h++) {
+        for (let a = 0; a <= scoreAway; a++) {
+          if (h + a > 0 && h + a <= scoreHome + scoreAway) {
+            ms.announcedGoals.push(goalEventId(match.id, h, a));
+          }
+        }
+      }
+    }
     console.log(`[Tracker] 🔵 Début : ${match.homeTeam.name} vs ${match.awayTeam.name}`);
     await postEmbed(embedDebut(match));
     ms.announcedStart = true;
