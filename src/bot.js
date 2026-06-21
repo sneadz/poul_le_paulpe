@@ -14,7 +14,7 @@ export async function connectBot() {
   client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   return new Promise((resolve, reject) => {
-    client.once('ready', () => {
+    client.once('clientReady', () => {
       console.log(`[Bot] ✅ Connecté en tant que ${client.user.tag}`);
       resolve(client);
     });
