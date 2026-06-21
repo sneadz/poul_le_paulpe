@@ -151,7 +151,9 @@ async function planifierJournee() {
   const matchs = await getMatchesJourneePoul();
 
   if (!matchs.length) {
-    console.log('[Tracker] 💤 Aucun match sur la fenêtre active. Poul se repose.');
+    // Soit vraiment aucun match, soit l'API a échoué — on reessaie dans 5 min
+    console.log('[Tracker] ⚠️  Aucun match trouvé. Nouvelle tentative dans 5 min...');
+    setTimeout(planifierJournee, 5 * 60 * 1000);
     return;
   }
 
