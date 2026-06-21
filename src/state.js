@@ -8,7 +8,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const STATE_FILE = path.join(__dirname, '..', 'data', 'state.json');
+const DATA_DIR   = path.join(__dirname, '..', 'data');
+const STATE_FILE = path.join(DATA_DIR, 'state.json');
+
+// Crée le dossier data/ s'il n'existe pas (Railway ne le crée pas)
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 /** Structure par défaut d'un match dans l'état */
 function defaultMatchState() {

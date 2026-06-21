@@ -81,8 +81,10 @@ export async function getFixturesByDate(date) {
  * @returns {Promise<Array>}
  */
 export async function getLiveFixtures() {
+  // L'API n'accepte qu'un seul statut à la fois — on prend IN_PLAY qui couvre
+  // toutes les phases de jeu actif (mi-temps incluse via PAUSED détecté côté score)
   const data = await apiGet(`/competitions/${COMPETITION}/matches`, {
-    status: 'IN_PLAY,PAUSED,EXTRA_TIME,PENALTY_SHOOTOUT',
+    status: 'IN_PLAY',
   });
 
   if (!data) return [];
