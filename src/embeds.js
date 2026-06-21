@@ -1,35 +1,25 @@
 /**
  * embeds.js — Constructeurs d'embeds Discord pour chaque type d'événement.
- * Tout le ton décalé de Poul le Paulpe est ici.
+ * Adapté à la structure de football-data.org v4.
  */
 
 import { EmbedBuilder } from 'discord.js';
 
-/** Couleurs des embeds */
 const COLORS = {
-  debut: 0x1e90ff,   // bleu vif
-  but: 0xffd700,     // or
-  fin: 0x2ecc71,     // vert
-  mi_temps: 0x95a5a6, // gris
+  debut: 0x1e90ff,
+  but: 0xffd700,
+  fin: 0x2ecc71,
+  mi_temps: 0x95a5a6,
 };
 
 /**
- * Formate un nom d'équipe depuis les données API.
- * @param {object} team - objet team de l'API ({ name, logo })
- */
-function nomEquipe(team) {
-  return team?.name ?? 'Équipe inconnue';
-}
-
-/**
  * Embed pour le début d'un match.
- * @param {object} fixture - objet fixture complet de l'API
+ * @param {object} match - objet match de football-data.org
  */
-export function embedDebut(fixture) {
-  const { teams, fixture: f, league } = fixture;
-  const domicile = nomEquipe(teams.home);
-  const exterieur = nomEquipe(teams.away);
-  const heure = new Date(f.date).toLocaleTimeString('fr-FR', {
+export function embedDebut(match) {
+  const domicile = match.homeTeam.name;
+  const exterieur = match.awayTeam.name;
+  const heure = new Date(match.utcDate).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Europe/Paris',
@@ -37,43 +27,40 @@ export function embedDebut(fixture) {
 
   return new EmbedBuilder()
     .setColor(COLORS.debut)
-    .setTitle(`🐙 Poul sort de son aquarium — le match commence !`)
+    .setTitle('🐙 Poul sort de son aquarium — le match commence !')
     .setDescription(`**${domicile}** affronte **${exterieur}**\nPoul a les tentacules qui frémissent...`)
     .addFields(
-      { name: '🏟️ Stade', value: f.venue?.name ?? 'Stade inconnu', inline: true },
       { name: '🕐 Coup d\'envoi', value: heure, inline: true },
-      { name: '🏆 Compétition', value: league.name, inline: true },
+      { name: '🏆 Compétition', value: 'FIFA Coupe du Monde 2026', inline: true },
     )
-    .setThumbnail(league.logo)
-    .setFooter({ text: `Match ID ${f.id}` })
+    .setFooter({ text: `Match ID ${match.id}` })
     .setTimestamp();
 }
 
 /**
  * Embed pour un but marqué.
- * @param {object} fixture - objet fixture complet de l'API
- * @param {object|null} evenement - dernier événement "Goal" de l'API (peut être null)
- * @param {'home'|'away'} campDuBut - qui a marqué
+ * @param {object} match - objet match complet
+ * @param {object|null} but - dernier objet but de match.goals[]
  */
-export function embedBut(fixture, evenement, campDuBut) {
-  const { teams, goals } = fixture;
-  const domicile = nomEquipe(teams.home);
-  const exterieur = nomEquipe(teams.away);
-  const equipeQuiMarque = campDuBut === 'home' ? domicile : exterieur;
+export function embedBut(match, but) {
+  const domicile = match.homeTeam.name;
+  const exterieur = match.awayTeam.name;
+  const scoreHome = match.score.fullTime.home ?? 0;
+  const scoreAway = match.score.fullTime.away ?? 0;
+  const score = `${scoreHome} - ${scoreAway}`;
 
-  const score = `${goals.home ?? 0} - ${goals.away ?? 0}`;
-  const buteur = evenement?.player?.name ?? null;
-  const minute = evenement?.time?.elapsed ?? null;
-  const typeGoal = evenement?.detail ?? 'But';
+  const equipeQuiMarque = but?.team?.name ?? 'Équipe inconnue';
+  const buteur = but?.scorer?.name ?? null;
+  const minute = but?.minute ?? null;
+  const type = but?.type ?? 'NORMAL';
 
-  // Détail du but : pénalty, CSC, etc.
-  let detailGoal = '';
-  if (typeGoal === 'Penalty') detailGoal = ' *(pénalty)* ';
-  else if (typeGoal === 'Own Goal') detailGoal = ' *(csc)* ';
+  let detail = '';
+  if (type === 'PENALTY') detail = ' *(pénalty)*';
+  else if (type === 'OWN') detail = ' *(csc)*';
 
   const descButeur = buteur
-    ? `**${buteur}**${detailGoal} envoie le cuir au fond des filets !`
-    : `But marqué${detailGoal}!`;
+    ? `**${buteur}**${detail} envoie le cuir au fond des filets !`
+    : `But marqué${detail} !`;
 
   const minuteStr = minute ? `${minute}'` : '??\'';
 
@@ -85,56 +72,89 @@ export function embedBut(fixture, evenement, campDuBut) {
       { name: '⏱️ Minute', value: minuteStr, inline: true },
       { name: '🏹 Équipe', value: equipeQuiMarque, inline: true },
     )
-    .setFooter({ text: `Match ID ${fixture.fixture.id}` })
+    .setFooter({ text: `Match ID ${match.id}` })
     .setTimestamp();
 }
 
 /**
- * Embed pour la mi-temps (optionnel, informatif).
- * @param {object} fixture
+ * Embed pour la mi-temps.
+ * @param {object} match
  */
-export function embedMiTemps(fixture) {
-  const { teams, goals } = fixture;
-  const domicile = nomEquipe(teams.home);
-  const exterieur = nomEquipe(teams.away);
-  const score = `${goals.home ?? 0} - ${goals.away ?? 0}`;
+export function embedMiTemps(match) {
+  const domicile = match.homeTeam.name;
+  const exterieur = match.awayTeam.name;
+  const scoreHome = match.score.halfTime.home ?? 0;
+  const scoreAway = match.score.halfTime.away ?? 0;
 
   return new EmbedBuilder()
     .setColor(COLORS.mi_temps)
-    .setTitle(`🫧 Poul reprend son souffle — mi-temps !`)
-    .setDescription(`**${domicile} ${score} ${exterieur}**\n\nRetour dans 15 minutes, Poul garde un œil sur le tableau de bord.`)
-    .setFooter({ text: `Match ID ${fixture.fixture.id}` })
+    .setTitle('🫧 Poul reprend son souffle — mi-temps !')
+    .setDescription(`**${domicile} ${scoreHome} - ${scoreAway} ${exterieur}**\n\nRetour dans 15 minutes, Poul garde un œil sur le tableau.`)
+    .setFooter({ text: `Match ID ${match.id}` })
     .setTimestamp();
 }
 
 /**
  * Embed pour la fin d'un match.
- * @param {object} fixture
+ * @param {object} match
  */
-export function embedFin(fixture) {
-  const { teams, goals, fixture: f } = fixture;
-  const domicile = nomEquipe(teams.home);
-  const exterieur = nomEquipe(teams.away);
-  const scoreHome = goals.home ?? 0;
-  const scoreAway = goals.away ?? 0;
+/**
+ * Embed du bulletin quotidien posté à 10h.
+ * Liste tous les matchs de la fenêtre 10h00 → 09h59 le lendemain.
+ * @param {Array} matches - matchs triés par heure
+ * @param {string} dateLabel - ex: "samedi 21 juin"
+ */
+export function embedBulletinJournalier(matches, dateLabel) {
+  const lignes = matches.map((m) => {
+    const heure = new Date(m.utcDate).toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Paris',
+    });
+    return `🕐 **${heure}** — ${m.homeTeam.name} 🆚 ${m.awayTeam.name}`;
+  });
+
+  const description = lignes.length
+    ? lignes.join('\n')
+    : '_Aucun match prévu aujourd\'hui. Poul se prélasse dans son aquarium._';
+
+  const titre = lignes.length
+    ? `🐙 Poul scrute le programme — ${lignes.length} match${lignes.length > 1 ? 's' : ''} au menu !`
+    : '🐙 Poul vérifie le programme...';
+
+  return new EmbedBuilder()
+    .setColor(0x9b59b6)
+    .setTitle(titre)
+    .setDescription(description)
+    .setFooter({ text: `Programme du ${dateLabel} • Heures en heure de Paris` })
+    .setTimestamp();
+}
+
+export function embedFin(match) {
+  const domicile = match.homeTeam.name;
+  const exterieur = match.awayTeam.name;
+  const scoreHome = match.score.fullTime.home ?? 0;
+  const scoreAway = match.score.fullTime.away ?? 0;
   const score = `${scoreHome} - ${scoreAway}`;
 
   let resultat = '';
   if (scoreHome > scoreAway) resultat = `🏆 Victoire de **${domicile}** !`;
   else if (scoreAway > scoreHome) resultat = `🏆 Victoire de **${exterieur}** !`;
-  else resultat = `🤝 Match nul !`;
+  else resultat = '🤝 Match nul !';
 
-  // Détail du type de fin (prolongations, tirs au but...)
-  const typesFin = { FT: 'Temps réglementaire', AET: 'Après prolongations', PEN: 'Aux tirs au but' };
-  const typeFin = typesFin[f.status?.short] ?? 'Fin de match';
+  const typesFin = {
+    FINISHED: 'Temps réglementaire',
+    EXTRA_TIME: 'Après prolongations',
+    PENALTY_SHOOTOUT: 'Aux tirs au but',
+    AWARDED: 'Match sur tapis vert',
+  };
+  const typeFin = typesFin[match.status] ?? 'Fin de match';
 
   return new EmbedBuilder()
     .setColor(COLORS.fin)
-    .setTitle(`🏁 Poul retourne se reposer — match terminé !`)
+    .setTitle('🏁 Poul retourne se reposer — match terminé !')
     .setDescription(`**${domicile} ${score} ${exterieur}**\n\n${resultat}`)
-    .addFields(
-      { name: '📋 Résultat', value: typeFin, inline: true },
-    )
-    .setFooter({ text: `Match ID ${f.id}` })
+    .addFields({ name: '📋 Résultat', value: typeFin, inline: true })
+    .setFooter({ text: `Match ID ${match.id}` })
     .setTimestamp();
 }
