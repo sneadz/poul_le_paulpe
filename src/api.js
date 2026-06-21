@@ -1,22 +1,22 @@
 /**
- * api.js — Wrapper pour API-Football via RapidAPI
+ * api.js — Wrapper pour football-data.org v4
  * Gère les appels HTTP, le rate limit et les erreurs réseau.
  */
 
 import fetch from 'node-fetch';
 
-const BASE_URL = 'https://api-football-v1.p.rapidapi.com/v3';
+const BASE_URL = 'https://api.football-data.org/v4';
+const COMPETITION = 'WC'; // Code FIFA World Cup
 
 const headers = {
-  'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-  'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
+  'X-Auth-Token': process.env.RAPIDAPI_KEY,
+  // Demande à l'API de déplier les buts dans la réponse
+  'X-Unfold-Goals': 'true',
 };
 
 /**
- * Appel générique à l'API avec gestion du rate limit (429) et des erreurs réseau.
- * @param {string} endpoint - ex: '/fixtures'
- * @param {Record<string, string>} params - paramètres de la query string
- * @returns {Promise<object|null>} - données JSON ou null en cas d'erreur
+ * Appel générique avec gestion du rate limit et des erreurs réseau.
+ * Lit les headers de réponse pour logger les quotas restants.
  */
 async function apiGet(endpoint, params = {}) {
   const url = new URL(`${BASE_URL}${endpoint}`);
@@ -27,8 +27,20 @@ async function apiGet(endpoint, params = {}) {
   try {
     const response = await fetch(url.toString(), { headers });
 
+    // Log du quota restant pour aider à calibrer POLL_INTERVAL_MS
+    const restantes = response.headers.get('X-RequestsAvailable');
+    const resetDans = response.headers.get('X-RequestCounter-Reset');
+    if (restantes !== null) {
+      console.log(`[API] 📊 Quota : ${restantes} req restantes (reset dans ${resetDans}s)`);
+    }
+
     if (response.status === 429) {
-      console.warn('[API] ⚠️  Rate limit atteint (429). Poul attend avant de re-essayer...');
+      console.warn('[API] ⚠️  Rate limit atteint (429). Poul attend le prochain cycle...');
+      return null;
+    }
+
+    if (response.status === 403) {
+      console.error('[API] ❌ Clé API invalide ou plan insuffisant (403).');
       return null;
     }
 
@@ -37,15 +49,7 @@ async function apiGet(endpoint, params = {}) {
       return null;
     }
 
-    const json = await response.json();
-
-    // L'API renvoie les erreurs métier dans json.errors
-    if (json.errors && Object.keys(json.errors).length > 0) {
-      console.error('[API] ❌ Erreur API-Football :', json.errors);
-      return null;
-    }
-
-    return json;
+    return await response.json();
   } catch (err) {
     console.error('[API] ❌ Erreur réseau :', err.message);
     return null;
@@ -55,45 +59,42 @@ async function apiGet(endpoint, params = {}) {
 /**
  * Récupère tous les matchs de la Coupe du Monde pour une date donnée.
  * @param {string} date - format 'YYYY-MM-DD'
- * @returns {Promise<Array>} - liste de fixtures ou tableau vide
+ * @returns {Promise<Array>}
  */
 export async function getFixturesByDate(date) {
   console.log(`[API] 📅 Récupération des matchs du ${date}...`);
-  const data = await apiGet('/fixtures', {
-    date,
-    league: process.env.WORLD_CUP_LEAGUE_ID,
-    season: process.env.WORLD_CUP_SEASON,
+  const data = await apiGet(`/competitions/${COMPETITION}/matches`, {
+    dateFrom: date,
+    dateTo: date,
   });
 
   if (!data) return [];
 
-  console.log(`[API] ✅ ${data.results} match(s) trouvé(s) pour le ${date}`);
-  return data.response ?? [];
+  const matches = data.matches ?? [];
+  console.log(`[API] ✅ ${matches.length} match(s) trouvé(s) pour le ${date}`);
+  return matches;
 }
 
 /**
- * Récupère l'état en direct de tous les matchs de la Coupe du Monde en cours aujourd'hui.
- * Un seul appel suffit pour tous les matchs simultanés.
- * @returns {Promise<Array>} - liste de fixtures live ou tableau vide
+ * Récupère les matchs en cours (IN_PLAY + PAUSED + EXTRA_TIME + PENALTY_SHOOTOUT).
+ * Un seul appel couvre tous les matchs simultanés.
+ * @returns {Promise<Array>}
  */
 export async function getLiveFixtures() {
-  const data = await apiGet('/fixtures', {
-    live: 'all',
-    league: process.env.WORLD_CUP_LEAGUE_ID,
-    season: process.env.WORLD_CUP_SEASON,
+  const data = await apiGet(`/competitions/${COMPETITION}/matches`, {
+    status: 'IN_PLAY,PAUSED,EXTRA_TIME,PENALTY_SHOOTOUT',
   });
 
   if (!data) return [];
-  return data.response ?? [];
+  return data.matches ?? [];
 }
 
 /**
- * Récupère les détails d'un match spécifique (pour avoir les événements/buteurs).
- * @param {number} fixtureId
+ * Récupère les détails complets d'un match (avec les buts dépliés).
+ * @param {number} matchId
  * @returns {Promise<object|null>}
  */
-export async function getFixtureById(fixtureId) {
-  const data = await apiGet('/fixtures', { id: String(fixtureId) });
-  if (!data || !data.response?.length) return null;
-  return data.response[0];
+export async function getFixtureById(matchId) {
+  const data = await apiGet(`/matches/${matchId}`);
+  return data ?? null;
 }
