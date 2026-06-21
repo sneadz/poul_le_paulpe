@@ -45,50 +45,49 @@ export async function demarrerTracker() {
 // Journée Poul : 10h00 aujourd'hui → 09h59 demain
 // ---------------------------------------------------------------------------
 
+/** Retourne la date YYYY-MM-DD en heure de Paris. */
+function dateParis(date = new Date()) {
+  return date.toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+}
+
 /**
- * Retourne les bornes de la "journée Poul" active au moment de l'appel.
- * Si on est avant 10h, la journée active a commencé hier à 10h.
+ * Retourne les bornes de la "journée Poul" en timestamps UTC.
+ * Journée = 10h00 Paris (J) → 09h59 Paris (J+1).
+ * Si on est avant 10h Paris, la journée active a commencé hier.
  */
 function bornesJourneePoul() {
   const maintenant = new Date();
-  const heure = maintenant.getHours() + maintenant.getMinutes() / 60;
 
-  const debut = new Date(maintenant);
-  if (heure < 10) {
-    // Avant 10h : la journée active a commencé hier
-    debut.setDate(debut.getDate() - 1);
-  }
-  debut.setHours(10, 0, 0, 0);
+  const heureParis = parseInt(
+    maintenant.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }),
+    10,
+  );
 
-  const fin = new Date(debut);
-  fin.setDate(fin.getDate() + 1);
-  fin.setHours(9, 59, 59, 999);
+  // Date de référence en Paris (hier si avant 10h, aujourd'hui sinon)
+  const refParis = new Date(maintenant);
+  if (heureParis < 10) refParis.setDate(refParis.getDate() - 1);
+
+  const debutStr = dateParis(refParis);
+  const finStr   = dateParis(new Date(refParis.getTime() + 24 * 60 * 60 * 1000));
+
+  // On parse avec l'offset CEST (+02:00) — le runtime JS gère le passage hiver/été
+  const debut = new Date(`${debutStr}T10:00:00+02:00`);
+  const fin   = new Date(`${finStr}T09:59:59+02:00`);
 
   return { debut, fin };
 }
 
 /**
- * Retourne les dates calendaires à interroger pour couvrir la journée Poul.
- * Exemple : à 08h le 22 juin → on veut les matchs du 21 juin ET du 22 juin.
- */
-function datesAInterroger() {
-  const { debut, fin } = bornesJourneePoul();
-  const dates = [];
-  const cursor = new Date(debut);
-  while (cursor <= fin) {
-    dates.push(cursor.toISOString().split('T')[0]);
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  // Dédoublonnage au cas où
-  return [...new Set(dates)];
-}
-
-/**
- * Récupère tous les matchs de la journée Poul (filtrés dans la fenêtre 10h–09h59).
+ * Récupère tous les matchs de la journée Poul.
+ * Interroge toujours aujourd'hui ET demain en heure Paris pour ne pas rater
+ * les matchs nocturnes dont la date UTC bascule au lendemain.
  */
 async function getMatchesJourneePoul() {
   const { debut, fin } = bornesJourneePoul();
-  const dates = datesAInterroger();
+
+  const aujourd_hui = dateParis();
+  const demain      = dateParis(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  const dates       = [...new Set([aujourd_hui, demain])];
 
   const tous = [];
   for (const date of dates) {
@@ -96,7 +95,6 @@ async function getMatchesJourneePoul() {
     tous.push(...matchs);
   }
 
-  // Filtre sur la fenêtre exacte
   return tous.filter((m) => {
     const t = new Date(m.utcDate).getTime();
     return t >= debut.getTime() && t <= fin.getTime();
