@@ -15,8 +15,9 @@
 
 import { getFixturesByDate, getLiveFixtures } from './api.js';
 import { loadState, saveState, getMatchState, goalEventId } from './state.js';
-import { postEmbed } from './bot.js';
+import { postEmbed, postMessage } from './bot.js';
 import { embedDebut, embedBut, embedMiTemps, embedFin, embedBulletinJournalier } from './embeds.js';
+import { piocherMessages, genererHorairesAleatoires } from './messages.js';
 
 const POLL_INTERVAL    = parseInt(process.env.POLL_INTERVAL_MS ?? '30000', 10);
 const MARGE_AVANT      = 5  * 60 * 1000;   // 5 min avant coup d'envoi
@@ -34,11 +35,9 @@ let pollTimer = null;
 export async function demarrerTracker() {
   console.log('[Tracker] 🐙 Poul le Paulpe se réveille...');
 
-  // Lance immédiatement la journée en cours
   await planifierJournee();
-
-  // Programme le bulletin + re-planification à 10h00 chaque jour
   programmerProchain10h();
+  programmerMessagesAleatoires();
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +225,35 @@ function activerPolling(toutesLesPeriodes, periode) {
   }
 
   tick();
+}
+
+// ---------------------------------------------------------------------------
+// Messages aléatoires (3/jour entre 12h et 22h Paris)
+// ---------------------------------------------------------------------------
+
+let usedMessageIndexes = [];
+
+function programmerMessagesAleatoires() {
+  const horaires = genererHorairesAleatoires();
+  const { messages, newUsedIndexes } = piocherMessages(usedMessageIndexes);
+  usedMessageIndexes = newUsedIndexes;
+
+  horaires.forEach((timestamp, i) => {
+    const delai = timestamp - Date.now();
+    const heure = new Date(timestamp).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
+    console.log(`[Tracker] 💬 Message aléatoire ${i + 1}/3 programmé à ${heure}`);
+
+    setTimeout(async () => {
+      console.log(`[Tracker] 💬 Envoi : ${messages[i].slice(0, 60)}...`);
+      await postMessage(messages[i]);
+    }, delai);
+  });
+
+  // Reprogramme pour le lendemain à minuit Paris
+  const demainStr = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    .toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  const demainMinuit = new Date(`${demainStr}T00:00:00+02:00`);
+  setTimeout(programmerMessagesAleatoires, demainMinuit.getTime() - Date.now());
 }
 
 // ---------------------------------------------------------------------------

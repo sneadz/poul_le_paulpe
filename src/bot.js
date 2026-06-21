@@ -36,6 +36,20 @@ export async function connectBot() {
 }
 
 /**
+ * Poste un message texte brut dans le channel configuré.
+ * @param {string} texte
+ */
+export async function postMessage(texte) {
+  if (!client) return;
+  try {
+    const channel = await client.channels.fetch(process.env.DISCORD_CHANNEL_ID);
+    if (channel?.isTextBased()) await channel.send(texte);
+  } catch (err) {
+    console.error('[Bot] ❌ Impossible de poster le message :', err.message);
+  }
+}
+
+/**
  * Poste un embed dans le channel configuré.
  * @param {import('discord.js').EmbedBuilder} embed
  */
