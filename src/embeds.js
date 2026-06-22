@@ -28,20 +28,11 @@ const COLORS = {
 export function embedDebut(match) {
   const domicile = match.homeTeam.name;
   const exterieur = match.awayTeam.name;
-  const heure = new Date(match.utcDate).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Paris',
-  });
 
   return new EmbedBuilder()
     .setColor(COLORS.debut)
     .setTitle('🐙 Poul sort de son aquarium — le match commence !')
     .setDescription(`**${domicile}** affronte **${exterieur}**\nPoul a les tentacules qui frémissent...`)
-    .addFields(
-      { name: '🕐 Coup d\'envoi', value: heure, inline: true },
-      { name: '🏆 Compétition', value: 'FIFA Coupe du Monde 2026', inline: true },
-    )
     .setTimestamp();
 }
 
