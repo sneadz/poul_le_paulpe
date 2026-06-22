@@ -304,10 +304,11 @@ async function traiterMatch(match, state) {
   if (scoreHome + scoreAway > ms.homeScore + ms.awayScore) {
     const goalId = goalEventId(match.id, scoreHome, scoreAway);
     if (!ms.announcedGoals.includes(goalId)) {
+      const campDuBut = scoreHome > ms.homeScore ? 'home' : 'away';
       const buts = match.goals ?? [];
       const dernierBut = buts.length ? buts[buts.length - 1] : null;
       console.log(`[Tracker] ⚽ But : ${match.homeTeam.name} ${scoreHome}-${scoreAway} ${match.awayTeam.name}`);
-      await postEmbed(embedBut(match, dernierBut));
+      await postEmbed(embedBut(match, dernierBut, campDuBut));
       ms.announcedGoals.push(goalId);
       ms.homeScore = scoreHome;
       ms.awayScore = scoreAway;
