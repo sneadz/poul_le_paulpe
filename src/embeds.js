@@ -66,19 +66,20 @@ export function embedBut(match, but, campDuBut) {
   else if (type === 'OWN') detail = ' *(csc)*';
 
   const descButeur = buteur
-    ? `**${buteur}**${detail} envoie le cuir au fond des filets !`
-    : `But marqué${detail} !`;
+    ? `**${buteur}**${detail}${minute ? ` *(${minute}')* ` : ' '}envoie le cuir au fond des filets !`
+    : null;
 
-  const fields = [{ name: '🏹 Équipe', value: equipeQuiMarque, inline: true }];
-  if (minute) fields.unshift({ name: '⏱️ Minute', value: `${minute}'`, inline: true });
+  const description = [
+    descButeur,
+    `**${domicile} ${scoreHome} - ${scoreAway} ${exterieur}**`,
+  ].filter(Boolean).join('\n');
 
   const titreBut = TITRES_BUT[Math.floor(Math.random() * TITRES_BUT.length)];
 
   return new EmbedBuilder()
     .setColor(COLORS.but)
     .setTitle(titreBut)
-    .setDescription(`${descButeur}\n\n**${domicile} ${scoreHome} - ${scoreAway} ${exterieur}**`)
-    .addFields(...fields)
+    .setDescription(description)
     .setTimestamp();
 }
 
