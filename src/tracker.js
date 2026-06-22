@@ -36,6 +36,18 @@ export async function demarrerTracker() {
   console.log('[Tracker] 🐙 Poul le Paulpe se réveille...');
 
   await planifierJournee();
+
+  // Si on démarre après 10h aujourd'hui, on envoie le bulletin immédiatement
+  // plutôt que d'attendre demain matin
+  const heureParis = parseInt(
+    new Date().toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }),
+    10,
+  );
+  if (heureParis >= 10) {
+    console.log('[Tracker] 📰 Démarrage après 10h — envoi du bulletin immédiat.');
+    await posterBulletin();
+  }
+
   programmerProchain10h();
   programmerMessagesAleatoires();
 }
