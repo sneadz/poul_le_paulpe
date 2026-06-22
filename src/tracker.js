@@ -261,10 +261,14 @@ function programmerMessagesAleatoires() {
 // ---------------------------------------------------------------------------
 
 async function pollEtAnnonce() {
-  const fixtures = await getLiveFixtures();
+  // On récupère tous les matchs de la journée (tous statuts) pour détecter
+  // PAUSED (mi-temps) et FINISHED (fin) en plus de IN_PLAY
+  const fixtures = await getMatchesJourneePoul();
   const state = loadState();
 
   for (const match of fixtures) {
+    // On ne traite que les matchs qui ont démarré ou viennent de se terminer
+    if (!STATUTS_LIVE.has(match.status) && !STATUTS_FIN.has(match.status) && match.status !== 'PAUSED') continue;
     await traiterMatch(match, state);
   }
 
