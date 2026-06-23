@@ -177,5 +177,5 @@ export function genererHorairesAleatoires() {
     }
   }
 
-  return horaires.sort((a, b) => a - b);
+  return horaires;
 }
