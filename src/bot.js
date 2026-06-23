@@ -69,10 +69,12 @@ export async function connectBot() {
 
           if (reponse) {
             await message.reply(reponse);
+          } else {
+            await message.reply('🐙 Poul aquarium bugguer. Poul sentir... rien. Revenir plus tard. Bloop...');
           }
-          // Si null (cooldown), on ignore silencieusement
         } catch (err) {
           console.error('[Bot] ❌ Erreur lors de la réponse @mention :', err.message);
+          await message.reply('🐙 Poul pas bien. Tentacules confus. Bloop bloop bloop...');
         }
       });
 
