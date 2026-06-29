@@ -16,7 +16,7 @@
 import { getFixturesByDate, getLiveFixtures } from './api.js';
 import { loadState, saveState, getMatchState, goalEventId } from './state.js';
 import { postEmbed, postMessage } from './bot.js';
-import { embedDebut, embedBut, embedMiTemps, embedFin, embedBulletinJournalier } from './embeds.js';
+import { embedFin, embedBulletinJournalier } from './embeds.js';
 import { piocherMessages, genererHorairesAleatoires } from './messages.js';
 
 const POLL_INTERVAL    = parseInt(process.env.POLL_INTERVAL_MS ?? '30000', 10);
@@ -293,52 +293,44 @@ async function traiterMatch(match, state) {
   const scoreAway = match.score.fullTime.away ?? 0;
   const ms        = getMatchState(state, match.id);
 
-  // Début de match
-  if (STATUTS_LIVE.has(statut) && !ms.announcedStart) {
-    // Si le bot redémarre sur un match déjà en cours avec des buts existants,
-    // on initialise le score sans ré-annoncer les anciens buts
-    if (scoreHome + scoreAway > 0 && ms.homeScore === 0 && ms.awayScore === 0) {
-      console.log(`[Tracker] ↩️  Match déjà en cours (${scoreHome}-${scoreAway}), Poul rattrape le score sans re-annoncer.`);
-      ms.homeScore = scoreHome;
-      ms.awayScore = scoreAway;
-      // Marque tous les scores intermédiaires comme déjà annoncés
-      for (let h = 0; h <= scoreHome; h++) {
-        for (let a = 0; a <= scoreAway; a++) {
-          if (h + a > 0 && h + a <= scoreHome + scoreAway) {
-            ms.announcedGoals.push(goalEventId(match.id, h, a));
-          }
+  // Si le bot redémarre sur un match déjà en cours avec des buts existants,
+  // on initialise le score sans ré-annoncer les anciens buts
+  if (STATUTS_LIVE.has(statut) && ms.homeScore === 0 && ms.awayScore === 0 && scoreHome + scoreAway > 0) {
+    console.log(`[Tracker] ↩️  Match déjà en cours (${scoreHome}-${scoreAway}), Poul rattrape le score.`);
+    ms.homeScore = scoreHome;
+    ms.awayScore = scoreAway;
+    ms.announcedStart = true;
+    ms.status = statut;
+    // Marque tous les scores intermédiaires comme déjà annoncés
+    for (let h = 0; h <= scoreHome; h++) {
+      for (let a = 0; a <= scoreAway; a++) {
+        if (h + a > 0 && h + a <= scoreHome + scoreAway) {
+          ms.announcedGoals.push(goalEventId(match.id, h, a));
         }
       }
     }
-    console.log(`[Tracker] 🔵 Début : ${match.homeTeam.name} vs ${match.awayTeam.name}`);
-    await postEmbed(embedDebut(match));
-    ms.announcedStart = true;
-    ms.status = statut;
   }
 
-  // But(s)
+  // Mise à jour du score (sans annonce)
   if (scoreHome + scoreAway > ms.homeScore + ms.awayScore) {
     const goalId = goalEventId(match.id, scoreHome, scoreAway);
     if (!ms.announcedGoals.includes(goalId)) {
-      const campDuBut = scoreHome > ms.homeScore ? 'home' : 'away';
-      const buts = match.goals ?? [];
-      const dernierBut = buts.length ? buts[buts.length - 1] : null;
-      console.log(`[Tracker] ⚽ But : ${match.homeTeam.name} ${scoreHome}-${scoreAway} ${match.awayTeam.name}`);
-      await postEmbed(embedBut(match, dernierBut, campDuBut));
       ms.announcedGoals.push(goalId);
       ms.homeScore = scoreHome;
       ms.awayScore = scoreAway;
     }
   }
 
-  // Mi-temps
-  if (statut === 'PAUSED' && ms.status !== 'PAUSED') {
-    console.log(`[Tracker] 🫧 Mi-temps : ${match.homeTeam.name} vs ${match.awayTeam.name}`);
-    await postEmbed(embedMiTemps(match));
+  // Suivi du statut (sans annonce)
+  if (STATUTS_LIVE.has(statut) && !ms.announcedStart) {
+    ms.announcedStart = true;
+    ms.status = statut;
+  }
+  if (statut === 'PAUSED') {
     ms.status = 'PAUSED';
   }
 
-  // Fin de match
+  // Fin de match — SEUL MESSAGE À ANNONCER
   if (STATUTS_FIN.has(statut) && !ms.announcedEnd) {
     console.log(`[Tracker] 🏁 Fin : ${match.homeTeam.name} ${scoreHome}-${scoreAway} ${match.awayTeam.name}`);
     await postEmbed(embedFin(match));
