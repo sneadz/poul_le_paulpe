@@ -82,7 +82,7 @@ export async function connectBot() {
       try {
         const channel = await client.channels.fetch(process.env.DISCORD_CHANNEL_ID);
         if (channel?.isTextBased()) {
-          await channel.send('🐙 Poul le Paulpe est en ligne et surveille la Coupe du Monde !');
+          await channel.send('🐙 Poul arrivre. Poul zen maintenant. Pas bombarder de buts. Seulement résumés. Bloop.');
         }
       } catch (err) {
         console.error('[Bot] ❌ Impossible d\'envoyer le message de démarrage :', err.message);
